@@ -9,6 +9,8 @@ export const PERMISSIONS = {
   ROLE_VIEW: 'role.view',
   ROLE_UPDATE: 'role.update',
   ROLE_DELETE: 'role.delete',
+
+  EMPLOYEE_UPDATE: 'emaployee.update',
 } as const;
 
 export type PermissionType = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

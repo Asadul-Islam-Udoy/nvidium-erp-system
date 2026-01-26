@@ -21,6 +21,7 @@ import { Roles } from '../role/roles.decorator';
 import { ROLE_DEFINITION } from '../database/seeds/role.seed';
 import { RolesGuard } from '../role/roles.gurd';
 import { PermissionsGuard } from '../permission/permissions.guard';
+import { Public } from 'src/common/decorators/public.decorator';
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('users')
 export class UserController {
@@ -38,6 +39,7 @@ export class UserController {
   }
 
   @Post()
+  @Public()
   create(@Body() dto: CreateUserDto) {
     return this.userService.create(dto);
   }

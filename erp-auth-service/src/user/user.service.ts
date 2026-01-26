@@ -13,10 +13,14 @@ import { PaginationDto } from './dto/paginationDto';
 import { paginationToDataFetch } from '../utils/paginationToDataFetch';
 import { Role } from '../role/role.entity';
 import { ROLE_DEFINITION } from '../database/seeds/role.seed';
+import { EmployeeService } from '../employee/employee.service';
 
 @Injectable()
 export class UserService {
-  constructor(@InjectRepository(User) private repo: Repository<User>) {}
+  constructor(
+    @InjectRepository(User) private repo: Repository<User>,
+    private readonly employeeService: EmployeeService,
+  ) {}
 
   async findAll(pagination: PaginationDto) {
     const qb = this.repo.createQueryBuilder('user');
@@ -60,6 +64,14 @@ export class UserService {
       });
       const saveuser = await this.repo.save(user);
       const { password, ...result } = saveuser;
+
+      await this.employeeService.create({
+        userId: saveuser.id,
+        name: dto.name,
+        employeeCode: `EMP-${saveuser.id}`,
+        designation: 'Junior Developer',
+        joiningDate: new Date(),
+      });
       return result;
     } catch (error: any) {
       if (error instanceof ConflictException) throw error;
