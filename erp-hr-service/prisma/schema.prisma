@@ -1,0 +1,83 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  // Force ESM output for Node 24 compatibility
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Employee {
+  id           String         @id @default(uuid())
+  userId       String
+  employeeCode String         @unique
+  departmentId String
+  positionId   String
+  joinDate     DateTime
+  status       EmployeeStatus
+  salaries     Salary[]
+  leaves       Leave[]
+  performances Performance[]
+}
+
+model Department {
+  id   String @id @default(uuid())
+  name String
+}
+
+model Position {
+  id   String @id @default(uuid())
+  name String
+}
+
+model Salary {
+  id         String   @id @default(uuid())
+  employeeId String
+  base       Float
+  bonus      Float
+  effective  DateTime
+  employee   Employee @relation(fields: [employeeId], references: [id])
+}
+
+model Leave {
+  id         String      @id @default(uuid())
+  employeeId String
+  startDate  DateTime
+  endDate    DateTime
+  type       LeaveType
+  status     LeaveStatus
+  employee   Employee    @relation(fields: [employeeId], references: [id])
+}
+
+model Performance {
+  id         String   @id @default(uuid())
+  employeeId String
+  rating     Int
+  reviewDate DateTime
+  employee   Employee @relation(fields: [employeeId], references: [id])
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  RESIGNED
+  TERMINATED
+}
+
+enum LeaveType {
+  SICK
+  CASUAL
+  VACATION
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
