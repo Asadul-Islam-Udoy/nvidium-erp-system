@@ -13,9 +13,11 @@ CREATE TABLE "Employee" (
     "userId" TEXT NOT NULL,
     "employeeCode" TEXT NOT NULL,
     "departmentId" TEXT NOT NULL,
-    "positionId" TEXT NOT NULL,
-    "joinDate" TIMESTAMP(3) NOT NULL,
-    "status" "EmployeeStatus" NOT NULL,
+    "positionId" TEXT,
+    "joinDate" TIMESTAMP(3),
+    "status" "EmployeeStatus",
+    "address" TEXT,
+    "companyId" TEXT,
 
     CONSTRAINT "Employee_pkey" PRIMARY KEY ("id")
 );
@@ -71,6 +73,12 @@ CREATE TABLE "Performance" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Employee_employeeCode_key" ON "Employee"("employeeCode");
+
+-- AddForeignKey
+ALTER TABLE "Employee" ADD CONSTRAINT "Employee_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "Department"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Employee" ADD CONSTRAINT "Employee_positionId_fkey" FOREIGN KEY ("positionId") REFERENCES "Position"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Salary" ADD CONSTRAINT "Salary_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

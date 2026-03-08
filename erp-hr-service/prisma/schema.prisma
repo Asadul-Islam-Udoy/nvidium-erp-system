@@ -14,26 +14,32 @@ datasource db {
 }
 
 model Employee {
-  id           String         @id @default(uuid())
+  id           String          @id @default(uuid())
   userId       String
-  employeeCode String         @unique
+  employeeCode String          @unique
   departmentId String
-  positionId   String
-  joinDate     DateTime
-  status       EmployeeStatus
+  department   Department      @relation(fields: [departmentId], references: [id])
+  positionId   String?
+  position     Position?       @relation(fields: [positionId], references: [id])
+  joinDate     DateTime?
+  status       EmployeeStatus?
   salaries     Salary[]
   leaves       Leave[]
   performances Performance[]
+  address  String?
+  companyId String?
 }
 
 model Department {
-  id   String @id @default(uuid())
-  name String
+  id        String     @id @default(uuid())
+  name      String
+  employees Employee[]
 }
 
 model Position {
-  id   String @id @default(uuid())
-  name String
+  id        String     @id @default(uuid())
+  name      String
+  employees Employee[]
 }
 
 model Salary {
