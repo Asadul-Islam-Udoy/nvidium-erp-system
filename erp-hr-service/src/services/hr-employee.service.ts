@@ -9,15 +9,14 @@ export class EmployeeService {
   async createEmployee(data: CreateEmployeeDto) {
     return this.prisma.employee.create({
       data: {
-        userId: data.userId,
-        employeeCode: data.employeeCode,
-        departmentId: data.departmentId,
-        positionId: data.positionId,
-        companyId: data.companyId,
-        address: data.address,
+        userId: data.userId || null,
+        employeeCode: data.employeeCode || null,
+        departmentId: data.departmentId || null,
+        positionId: data.positionId || null,
+        companyId: data.companyId || null,
+        address: data.address || null,
         joinDate: data.joinDate ? new Date(data.joinDate) : undefined,
         status: data.status,
-        salary: data.salary,
       } as Prisma.EmployeeUncheckedCreateInput,
     });
   }
@@ -28,31 +27,47 @@ export class EmployeeService {
     if (status) {
       where.status = status;
     }
-
     const [employees, total] = await Promise.all([
       this.prisma.employee.findMany({
         where,
         skip,
         take: limit,
         orderBy: { joinDate: 'desc' },
+        select: {
+          id: true,
+          userId: true,
+          employeeCode: true,
+          address: true,
+          joinDate: true,
+          status: true,
+          departmentId: true,
+          positionId: true,
+          companyId: true,
+          salaries: {
+            select: { base: true, bonus: true, effective: true },
+          },
+          leaves: {
+            select: {
+              startDate: true,
+              endDate: true,
+              type: true,
+              status: true,
+            },
+          },
+          performances: {
+            select: { rating: true, reviewDate: true },
+          },
+        },
       }),
       this.prisma.employee.count({ where }),
     ]);
-    return this.prisma.employee.findMany({
-      select: {
-        id: true,
-        userId: true,
-        address: true,
-        joinDate: true,
-        status: true,
-        employeeCode: true,
-        departmentId: true, // scalar → select
-        positionId: true, // scalar → select
-        companyId: true, // scalar → select
-        salaries: true, // relation → include/select works
-        leaves: true, // relation → include/select works
-        performances: true, // relation → include/select works
+    return {
+      data: employees,
+      meta: {
+        total,
+        page,
+        lastPage: Math.ceil(total / limit),
       },
-    });
+    };
   }
 }

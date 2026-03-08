@@ -9,6 +9,6 @@ export class AppService {
   }
 
   async checkDb() {
-     return await this.prisma.$queryRaw`SELECT 1 as connected`;
+    return await this.prisma.$queryRaw`SELECT 1 as connected`;
   }
 }

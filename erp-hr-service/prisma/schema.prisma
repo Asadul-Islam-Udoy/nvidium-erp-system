@@ -15,10 +15,10 @@ datasource db {
 
 model Employee {
   id           String          @id @default(uuid())
-  userId       String
-  employeeCode String          @unique
-  departmentId String
-  department   Department      @relation(fields: [departmentId], references: [id])
+  userId       String?
+  employeeCode String?          @unique
+  departmentId String?
+  department   Department?      @relation(fields: [departmentId], references: [id])
   positionId   String?
   position     Position?       @relation(fields: [positionId], references: [id])
   joinDate     DateTime?
