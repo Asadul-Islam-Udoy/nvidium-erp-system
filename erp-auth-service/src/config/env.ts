@@ -9,7 +9,7 @@ export const env = {
     port: parseInt(process.env.POSTGRES_PORT || '5432', 10),
     username: process.env.POSTGRES_USER || 'postgres',
     password: process.env.POSTGRES_PASSWORD || 'root',
-    database: process.env.POSTGRES_DB || 'erp_auth_service',
+    database: process.env.POSTGRES_DB || 'erp_auth_db',
   },
   authServiceUrl: process.env.AUTH_SERVICE_URL!,
   jwt: {

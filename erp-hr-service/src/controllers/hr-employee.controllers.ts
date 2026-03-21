@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller } from '@nestjs/common';
 import { EmployeeService } from '../services/hr-employee.service';
 import { CreateEmployeeDto } from 'src/dto/create-employee.dto';
 import { Employee, EmployeeStatus } from '@prisma/client';
@@ -33,4 +33,3 @@ export class EmployeeController {
     return this.employeeService.getEmployees(pageNumber, limitNumber, status);
   }
 }
- 

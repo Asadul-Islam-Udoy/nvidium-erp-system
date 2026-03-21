@@ -10,7 +10,7 @@ async function bootstrap() {
       transport: Transport.TCP,
       options: {
         host: process.env.HOST ?? 'localhost',
-        port: parseInt(process.env.PORT ?? '4000'),
+        port: parseInt(process.env.PORT ?? '4001'),
       },
     },
   );
@@ -19,7 +19,7 @@ async function bootstrap() {
   console.log(
     `Microservice is listening on ${
       process.env.HOST ?? 'localhost'
-    }:${process.env.PORT ?? '4000'}`,
+    }:${process.env.PORT ?? '4001'}`,
   );
 }
 bootstrap();

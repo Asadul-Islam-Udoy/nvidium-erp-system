@@ -3,15 +3,16 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HrController } from './controllers/hr.controller';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { UserController } from './controllers/user.controller';
 
 @Module({
   imports: [
     ClientsModule.register([
-      // {
-      //   name: 'USER_SERVICE',
-      //   transport: Transport.TCP,
-      //   options: { host: 'localhost', port: 4001 },
-      // },
+      {
+        name: 'USER_SERVICE',
+        transport: Transport.TCP,
+        options: { host: 'localhost', port: 4000 },
+      },
       {
         name: 'HR_SERVICE',
         transport: Transport.TCP,
@@ -19,7 +20,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
       },
     ]),
   ],
-  controllers: [AppController, HrController],
+  controllers: [AppController, HrController, UserController],
   providers: [AppService],
 })
 export class AppModule {}

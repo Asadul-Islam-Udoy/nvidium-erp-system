@@ -63,6 +63,7 @@ export class UserService {
 
       return result;
     } catch (error: any) {
+      console.error('Error saving user:', error);
       if (error instanceof ConflictException) throw error;
       throw new InternalServerErrorException('Failed to create user');
     }
