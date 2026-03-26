@@ -1,129 +1,114 @@
 import {
-  Body,
   Controller,
-  Post,
-  Res,
-  Get,
   UnauthorizedException,
-  Req,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import '@fastify/cookie';
 import { AuthService } from './auth.service';
 import { loginUserDto } from '../user/dto/loginUserDto';
 import { User } from '../user/user.entity';
-import type { FastifyRequest, FastifyReply } from 'fastify';
-import { env } from '../config/env';
+import { MessagePattern, Payload } from '@nestjs/microservices';
 
-@Controller('auth')
+@Controller()
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('login')
-  async login(
-    @Body() dto: loginUserDto,
-    @Res({ passthrough: true }) res: FastifyReply,
-  ) {
-    const user = await this.authService.validateUser(dto.email, dto.password);
-    const token = await this.authService.login(user as unknown as User);
+  @MessagePattern('auth.login')
+  async login(@Payload() dto: loginUserDto) {
+    try {
+      const user = await this.authService.validateUser(dto.email, dto.password);
+      if (!user) {
+        throw new UnauthorizedException('Invalid email or password');
+      }
 
-    res.setCookie('refreshToken', token.refreshToken.token, {
-      httpOnly: true,
-      path: '/auth/refresh', // must start with /
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: this.authService.secondsFromString(env.jwt.refreshExpiresIn),
-    });
-    res.setCookie('refreshTokenId', String(token.refreshToken.id), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/auth/refresh',
-      maxAge: this.authService.secondsFromString(env.jwt.refreshExpiresIn),
-    });
-    return {
-      accessToken: token.accessToken,
-    };
+      const token = await this.authService.login(user as unknown as User);
+
+      return {
+        accessToken: token.accessToken,
+        refreshToken: token.refreshToken.token,
+        refreshTokenId: token.refreshToken.id,
+      };
+    } catch (error: any) {
+      // Log error for debugging
+      console.error('Microservice login error:', error);
+
+      // Return a proper error
+      throw new InternalServerErrorException(
+        error?.message || 'Authentication service failed',
+      );
+    }
   }
-  @Post('refresh')
+  @MessagePattern('auth.refresh')
   async refresh(
-    @Req() req: FastifyRequest,
-    @Res({ passthrough: true }) res: FastifyReply,
+    @Payload()
+    data: {
+      refreshToken: string;
+      refreshTokenId: number;
+    },
   ) {
-    const refreshToken = req.cookies['refreshToken'];
-    if (!refreshToken) {
+    if (!data.refreshToken) {
       throw new UnauthorizedException('No refresh token');
     }
-
-    const tokenIdRaw = req.cookies['refreshTokenId'];
     // store id too
 
-    if (!tokenIdRaw) {
-      throw new UnauthorizedException('Missing refresh token id');
-    }
-    const tokenId = Number(tokenIdRaw);
-
-    if (Number.isNaN(tokenId)) {
+    if (!data.refreshTokenId || isNaN(data.refreshTokenId)) {
       throw new UnauthorizedException('Invalid refresh token id');
     }
     const token = await this.authService.rotateRefreshToken(
-      tokenId,
-      refreshToken,
+      data.refreshTokenId,
+      data.refreshToken,
     );
 
     // set new refresh token cookie
-    res.setCookie('refreshToken', token.refreshToken.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/auth/refresh',
-      maxAge: this.authService.secondsFromString(env.jwt.refreshExpiresIn),
-    });
+    // res.setCookie('refreshToken', token.refreshToken.token, {
+    //   httpOnly: true,
+    //   secure: process.env.NODE_ENV === 'production',
+    //   sameSite: 'strict',
+    //   path: '/auth/refresh',
+    //   maxAge: this.authService.secondsFromString(env.jwt.refreshExpiresIn),
+    // });
 
-    res.setCookie('refreshTokenId', String(token.refreshToken.id), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/auth/refresh',
-      maxAge: this.authService.secondsFromString(env.jwt.refreshExpiresIn),
-    });
+    // res.setCookie('refreshTokenId', String(token.refreshToken.id), {
+    //   httpOnly: true,
+    //   secure: process.env.NODE_ENV === 'production',
+    //   sameSite: 'strict',
+    //   path: '/auth/refresh',
+    //   maxAge: this.authService.secondsFromString(env.jwt.refreshExpiresIn),
+    // });
 
-    return { accessToken: token.accessToken };
+    return {
+      accessToken: token.accessToken,
+      refreshToken: token.refreshToken.token,
+      refreshTokenId: token.refreshToken.id,
+    };
   }
 
-  @Post('logout')
-  async logout(
-    @Req() req: FastifyRequest,
-    @Res({ passthrough: true }) res: FastifyReply,
-  ) {
-    const tokenIdRaw = req.cookies['refreshTokenId'];
-
-    if (tokenIdRaw) {
-      const tokenId = Number(tokenIdRaw);
-      if (!Number.isNaN(tokenId)) {
-        await this.authService.revokeRefreshToken(tokenId);
-      }
+  @MessagePattern('auth.logout')
+  async logout(@Payload() data: { refreshTokenId: number }) {
+    if (data.refreshTokenId && !isNaN(data.refreshTokenId)) {
+      await this.authService.revokeRefreshToken(data.refreshTokenId);
     }
 
     // Clear cookies
-    res.setCookie('refreshToken', '', {
-      path: '/auth/refresh',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 0,
-    });
+    // res.setCookie('refreshToken', '', {
+    //   path: '/auth/refresh',
+    //   httpOnly: true,
+    //   secure: process.env.NODE_ENV === 'production',
+    //   sameSite: 'strict',
+    //   maxAge: 0,
+    // });
 
-    res.setCookie('refreshTokenId', '', {
-      path: '/auth/refresh',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 0,
-    });
+    // res.setCookie('refreshTokenId', '', {
+    //   path: '/auth/refresh',
+    //   httpOnly: true,
+    //   secure: process.env.NODE_ENV === 'production',
+    //   sameSite: 'strict',
+    //   maxAge: 0,
+    // });
     return { success: true };
   }
 
-  @Get('public-key')
+  @MessagePattern('auth.public-key')
   getPublicKey() {
     return { publicKey: this.authService.getPublicKey() };
   }

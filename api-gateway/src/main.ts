@@ -15,7 +15,7 @@ async function bootstrap() {
   );
 
   // Register cookie parser
-  await app.register(fastifyCookie, {
+  await app.register(fastifyCookie as any, {
     secret: process.env.COOKIE_SECRET || 'super-secret',
     parseOptions: {}, // optional settings
   });

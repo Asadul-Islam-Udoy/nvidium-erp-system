@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RefreshToken } from '../token/refresh-token.entity';
@@ -55,12 +59,28 @@ export class AuthService {
     this.privateKey = fs.readFileSync(privateKeyPath, 'utf8');
     this.publicKey = fs.readFileSync(publicKeyPath, 'utf8');
   }
-  async validateUser(email: string, passs: string): Promise<JwtUser> {
-    const user = await this.userService.findByEmail(email);
-    if (!user) throw new UnauthorizedException('User not found!');
-    const isMatch = await user.comparePassword(passs);
-    if (!isMatch) throw new UnauthorizedException('Invalid credentials');
-    return { id: user.id, email: user.email };
+  async validateUser(email: string, password: string): Promise<User> {
+    try {
+      const user = await this.userService.findByEmail(email);
+      if (!user) throw new UnauthorizedException('User not found');
+
+      if (!user.password) throw new UnauthorizedException('Password not set');
+
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) throw new UnauthorizedException('Invalid credentials');
+
+      // fetch full user with roles & permissions
+      const fullUser = await this.userService.findOneWithRolesAndPermissions(
+        user.id,
+      );
+      if (!fullUser) throw new UnauthorizedException('User not found');
+      if (!fullUser.roles?.length)
+        throw new UnauthorizedException('User has no roles');
+      return fullUser;
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
+      throw new InternalServerErrorException('Failed to validate user');
+    }
   }
 
   async createAccessToken(user: User): Promise<string> {
@@ -72,9 +92,12 @@ export class AuthService {
       ),
     );
 
-    if (!roles.length || !permissions.length) {
+    if (!roles.length) {
       throw new UnauthorizedException('User role or permissions not loaded');
     }
+    // if (!permissions.length) {
+    //   throw new UnauthorizedException('User has no permissions');
+    // }
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -166,13 +189,16 @@ export class AuthService {
   }
 
   async login(user: User): Promise<TokenResponse> {
-    const fullUser = await this.findOneWithRolesAndPermissions(user.id);
-    if (!fullUser) {
-      throw new UnauthorizedException('User not found');
+    try {
+      const accessToken = await this.createAccessToken(user);
+      const refreshToken = await this.createRefreshToken(user);
+
+      return { accessToken, refreshToken };
+    } catch (error) {
+      throw error instanceof UnauthorizedException
+        ? error
+        : new InternalServerErrorException('Failed to login');
     }
-    const accessToken = await this.createAccessToken(fullUser);
-    const refreshToken = await this.createRefreshToken(fullUser);
-    return { accessToken, refreshToken };
   }
 
   async getPublicKey(): Promise<string> {

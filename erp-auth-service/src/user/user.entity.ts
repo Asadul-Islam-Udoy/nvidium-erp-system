@@ -31,7 +31,7 @@ export class User {
 
   @ManyToMany(() => Role, (role) => role.users, {
     cascade: true,
-    eager: false,
+    eager: true,
   })
   @JoinTable({
     name: 'user_roles',
