@@ -23,9 +23,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: FastifyReply,
   ) {
     try {
-      const result = await lastValueFrom(
-        this.authClient.send('auth.login', dto),
-      );
+      const result = await lastValueFrom( this.authClient.send('auth.login', dto));
       // ✅ Set cookies
       res.setCookie('refreshToken', result.refreshToken, {
         httpOnly: true,
