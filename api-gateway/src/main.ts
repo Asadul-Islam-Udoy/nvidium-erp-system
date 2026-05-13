@@ -20,7 +20,14 @@ async function bootstrap() {
     parseOptions: {}, // optional settings
   });
 
-  app.enableCors({ origin: 'http://localhost:4200', credentials: true });
+  app.enableCors({
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://localhost:4200',
+    ],
+    credentials: true,
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({

@@ -1,77 +1,94 @@
-import { useState } from "react";
-import {
-  Eye,
-  EyeOff,
-  Loader2,
-  User,
-  Mail,
-  Lock,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { Eye, EyeOff, Loader2, User, Mail, Lock } from "lucide-react";
+
+import { Link, useNavigate } from "react-router-dom";
 
 import { useRegisterMutation } from "../../features/auth/authApi";
-import { useAppDispatch } from "../../app/hooks";
-import { setCredentials } from "../../features/auth/authSlice";
-import { Link } from "react-router-dom";
 
+type RegisterFormState = {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+};
+type UIMessage = string | null;
 const RegisterPage = () => {
-  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
 
-  const [register, { isLoading }] =
+  const [register, { isLoading, isSuccess, error: apiError }] =
     useRegisterMutation();
 
-  const [showPassword, setShowPassword] =
-    useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const [
-    showConfirmPassword,
-    setShowConfirmPassword,
-  ] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [error, setError] = useState("");
+  const [message, setMessage] = useState<UIMessage>(null);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<RegisterFormState>({
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
   });
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+  // Handle Success Redirect
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
 
-    setError("");
+    if (isSuccess) {
+      setMessage("Account created successfully. Redirecting to login...");
+
+      timer = setTimeout(() => {
+        navigate("/sign-in", {
+          replace: true,
+        });
+      }, 1500);
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [isSuccess, navigate]);
+
+  // Handle API Error
+  useEffect(() => {
+    if (!apiError) return;
+
+    const err = apiError as {
+      data?: {
+        message?: string;
+      };
+    };
+
+    setMessage(err?.data?.message || "Registration failed");
+  }, [apiError]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+
+    setMessage("");
   };
 
-  const handleRegister = async (
-    e: React.FormEvent<HTMLFormElement>
-  ) => {
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (
-      formData.password !==
-      formData.confirmPassword
-    ) {
-      return setError("Passwords do not match");
+    if (formData.password !== formData.confirmPassword) {
+      setMessage("Passwords do not match");
+      return;
     }
 
     try {
-      const res = await register({
-        name: formData.name,
-        email: formData.email,
+      await register({
+        name: formData.name.trim(),
+        email: formData.email.trim(),
         password: formData.password,
       }).unwrap();
-
-      dispatch(setCredentials(res));
-    } catch (err: any) {
-      setError(
-        err?.data?.message ||
-          "Registration failed"
-      );
+    } catch {
+      // handled by useEffect(apiError)
     }
   };
 
@@ -84,11 +101,10 @@ const RegisterPage = () => {
         bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800
       "
     >
-      {/* Background Blur */}
+      {/* Background */}
       <div
         className="
-          absolute top-0 left-0 overflow-hidden
-          w-full h-full
+          absolute inset-0 overflow-hidden
           -z-10
         "
       >
@@ -120,7 +136,7 @@ const RegisterPage = () => {
           w-full max-w-md
           p-8
           bg-white/10
-          border border-white/20 rounded-3xl
+          rounded-3xl border border-white/20
           backdrop-blur-xl shadow-2xl
         "
       >
@@ -142,284 +158,85 @@ const RegisterPage = () => {
           <p
             className="
               mt-2
-              text-slate-300 text-sm
+              text-sm text-slate-300
             "
           >
             Register to get started
           </p>
         </div>
 
-        {/* Form */}
         <form
           onSubmit={handleRegister}
           className="
-            space-y-3
+            space-y-4
           "
         >
           {/* Name */}
-          <div>
-            <label
-              className="
-                block
-                mb-2
-                text-sm text-slate-200 font-medium
-              "
-            >
-              Full Name
-            </label>
-
-            <div
-              className="
-                relative
-              "
-            >
-              <User
-                size={18}
-                className="
-                  absolute left-4 top-1/2
-                  text-slate-400
-                  -translate-y-1/2
-                "
-                /
-              >
-
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="Enter your full name"
-                className="
-                  w-full
-                  pl-11 pr-4 py-2
-                  text-white placeholder:text-slate-400
-                  bg-white/10
-                  rounded-xl border border-white/20 outline-none
-                  focus:ring-2 focus:ring-blue-500
-                  transition-all
-                "
-                required
-              /
-              >
-            </div>
-          </div>
+          <InputField
+            icon={<User size={18} />}
+            type="text"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            placeholder="Enter your full name"
+          />
 
           {/* Email */}
-          <div>
-            <label
-              className="
-                block
-                mb-2
-                text-sm text-slate-200 font-medium
-              "
-            >
-              Email Address
-            </label>
-
-            <div
-              className="
-                relative
-              "
-            >
-              <Mail
-                size={18}
-                className="
-                  absolute left-4 top-1/2
-                  text-slate-400
-                  -translate-y-1/2
-                "
-                /
-              >
-
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="Enter your email"
-                className="
-                  w-full
-                  pl-11 pr-4 py-2
-                  text-white placeholder:text-slate-400
-                  bg-white/10
-                  rounded-xl border border-white/20 outline-none
-                  focus:ring-2 focus:ring-blue-500
-                  transition-all
-                "
-                required
-              /
-              >
-            </div>
-          </div>
+          <InputField
+            icon={<Mail size={18} />}
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            placeholder="Enter your email"
+          />
 
           {/* Password */}
-          <div>
-            <label
-              className="
-                block
-                mb-2
-                text-sm text-slate-200 font-medium
-              "
-            >
-              Password
-            </label>
-
-            <div
-              className="
-                relative
-              "
-            >
-              <Lock
-                size={18}
-                className="
-                  absolute left-4 top-1/2
-                  text-slate-400
-                  -translate-y-1/2
-                "
-                /
-              >
-
-              <input
-                type={
-                  showPassword
-                    ? "text"
-                    : "password"
-                }
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Create password"
-                className="
-                  w-full
-                  pl-11 pr-12 py-2
-                  text-white placeholder:text-slate-400
-                  bg-white/10
-                  rounded-xl border border-white/20 outline-none
-                  focus:ring-2 focus:ring-blue-500
-                  transition-all
-                "
-                required
-              /
-              >
-
-              <button
-                type="button"
-                onClick={() =>
-                  setShowPassword(!showPassword)
-                }
-                className="
-                  absolute
-                  right-4
-                  top-1/2
-                  -translate-y-1/2
-                  text-slate-400
-                  hover:text-white
-                  transition
-                "
-              >
-                {showPassword ? (
-                  <EyeOff size={20} />
-                ) : (
-                  <Eye size={20} />
-                )}
-              </button>
-            </div>
-          </div>
+          <PasswordField
+            value={formData.password}
+            onChange={handleChange}
+            show={showPassword}
+            onToggle={() => setShowPassword((prev) => !prev)}
+            name="password"
+            placeholder="Create password"
+          />
 
           {/* Confirm Password */}
-          <div>
-            <label
-              className="
-                block
-                mb-2
-                text-sm text-slate-200 font-medium
-              "
-            >
-              Confirm Password
-            </label>
+          <PasswordField
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            show={showConfirmPassword}
+            onToggle={() => setShowConfirmPassword((prev) => !prev)}
+            name="confirmPassword"
+            placeholder="Confirm password"
+          />
 
+          {/* Message */}
+          {message && (
             <div
-              className="
-                relative
-              "
+              className={`
+                px-4 py-3 rounded-xl text-sm border
+                ${
+                  isSuccess
+                    ? `
+                      text-green-400
+                      bg-green-500/10
+                      border-green-500/20
+                    `
+                    : `
+                      text-red-400
+                      bg-red-500/10
+                      border-red-500/20
+                    `
+                }
+              `}
             >
-              <Lock
-                size={18}
-                className="
-                  absolute left-4 top-1/2
-                  text-slate-400
-                  -translate-y-1/2
-                "
-                /
-              >
-
-              <input
-                type={
-                  showConfirmPassword
-                    ? "text"
-                    : "password"
-                }
-                name="confirmPassword"
-                value={
-                  formData.confirmPassword
-                }
-                onChange={handleChange}
-                placeholder="Confirm password"
-                className="
-                  w-full
-                  pl-11 pr-12 py-2
-                  text-white placeholder:text-slate-400
-                  bg-white/10
-                  rounded-xl border border-white/20 outline-none
-                  focus:ring-2 focus:ring-blue-500
-                  transition-all
-                "
-                required
-              /
-              >
-
-              <button
-                type="button"
-                onClick={() =>
-                  setShowConfirmPassword(
-                    !showConfirmPassword
-                  )
-                }
-                className="
-                  absolute
-                  right-4
-                  top-1/2
-                  -translate-y-1/2
-                  text-slate-400
-                  hover:text-white
-                  transition
-                "
-              >
-                {showConfirmPassword ? (
-                  <EyeOff size={20} />
-                ) : (
-                  <Eye size={20} />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <div
-              className="
-                px-4 py-3
-                text-sm text-red-400
-                bg-red-500/10
-                border border-red-500/20 rounded-xl
-              "
-            >
-              {error}
+              {message}
             </div>
           )}
 
           {/* Terms */}
-          <div
+          <label
             className="
               flex items-start
               text-sm text-slate-300
@@ -428,26 +245,25 @@ const RegisterPage = () => {
           >
             <input
               type="checkbox"
+              required
               className="
                 mt-1
                 accent-blue-600
               "
-              required
-            /
+              /
             >
 
-            <p>
+            <span>
               I agree to the{" "}
               <span
                 className="
                   text-blue-400
-                  cursor-pointer
                 "
               >
                 Terms & Conditions
               </span>
-            </p>
-          </div>
+            </span>
+          </label>
 
           {/* Submit */}
           <button
@@ -460,7 +276,7 @@ const RegisterPage = () => {
               font-semibold text-white
               bg-blue-600 hover:bg-blue-700
               rounded-xl
-              disabled:opacity-70 transition-all shadow-lg shadow-blue-600/30
+              disabled:opacity-70 transition-all
               active:scale-[0.98]
               gap-2
             "
@@ -468,11 +284,11 @@ const RegisterPage = () => {
             {isLoading ? (
               <>
                 <Loader2
+                  size={18}
                   className="
                     animate-spin
                   "
-                  size={18}
-                /
+                  /
                 >
                 Creating Account...
               </>
@@ -490,15 +306,136 @@ const RegisterPage = () => {
           "
         >
           Already have an account?{" "}
-          <button
+          <Link
+            to="/sign-in"
             className="
-              text-blue-400 hover:text-blue-300 font-medium
+              font-medium text-blue-400 hover:text-blue-300
             "
           >
-            <Link to="/sign-in">Login</Link>
-          </button>
+            Login
+          </Link>
         </div>
       </div>
+    </div>
+  );
+};
+
+type InputFieldProps = {
+  icon: React.ReactNode;
+  type: string;
+  name: string;
+  value: string;
+  placeholder: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+};
+
+const InputField = ({
+  icon,
+  type,
+  name,
+  value,
+  placeholder,
+  onChange,
+}: InputFieldProps) => {
+  return (
+    <div
+      className="
+        relative
+      "
+    >
+      <div
+        className="
+          absolute left-4 top-1/2
+          text-slate-400
+          -translate-y-1/2
+        "
+      >
+        {icon}
+      </div>
+
+      <input
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        required
+        className="
+          w-full
+          py-2 pl-11 pr-4
+          text-white placeholder:text-slate-400
+          bg-white/10
+          rounded-xl border border-white/20 outline-none
+          focus:ring-2 focus:ring-blue-500
+        "
+        /
+      >
+    </div>
+  );
+};
+
+type PasswordFieldProps = {
+  value: string;
+  show: boolean;
+  name: string;
+  placeholder: string;
+  onToggle: () => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+};
+
+const PasswordField = ({
+  value,
+  show,
+  name,
+  placeholder,
+  onToggle,
+  onChange,
+}: PasswordFieldProps) => {
+  return (
+    <div
+      className="
+        relative
+      "
+    >
+      <Lock
+        size={18}
+        className="
+          absolute left-4 top-1/2
+          text-slate-400
+          -translate-y-1/2
+        "
+        /
+      >
+
+      <input
+        type={show ? "text" : "password"}
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        required
+        className="
+          w-full
+          py-2 pl-11 pr-12
+          text-white placeholder:text-slate-400
+          bg-white/10
+          rounded-xl border border-white/20 outline-none
+          focus:ring-2 focus:ring-blue-500
+        "
+        /
+      >
+
+      <button
+        type="button"
+        onClick={onToggle}
+        className="
+          absolute right-4 top-1/2
+          text-slate-400 hover:text-white
+          -translate-y-1/2
+        "
+      >
+        {show ? <EyeOff size={20} /> : <Eye size={20} />}
+      </button>
     </div>
   );
 };

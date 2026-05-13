@@ -13,6 +13,7 @@ import { PaginationDto } from './dto/paginationDto';
 import { paginationToDataFetch } from '../utils/paginationToDataFetch';
 import { Role } from '../role/role.entity';
 import { ROLE_DEFINITION } from '../database/seeds/role.seed';
+import { RpcException } from '@nestjs/microservices';
 
 @Injectable()
 export class UserService {
@@ -45,13 +46,19 @@ export class UserService {
     try {
       const existing = await this.repo.findOne({ where: { email: dto.email } });
       if (existing) {
-        throw new ConflictException('Email already exisits');
+        throw new RpcException({
+          statusCode: 409,
+          message: 'Email already exists',
+        });
       }
       const userRole = await this.repo.manager.findOne(Role, {
         where: { name: ROLE_DEFINITION.USER.name },
       });
       if (!userRole) {
-        throw new InternalServerErrorException('Default user role not found');
+        throw new RpcException({
+          statusCode: 500,
+          message: 'Default user role not found',
+        });
       }
       const user = this.repo.create({
         ...dto,
@@ -64,8 +71,16 @@ export class UserService {
       return result;
     } catch (error: any) {
       console.error('Error saving user:', error);
-      if (error instanceof ConflictException) throw error;
-      throw new InternalServerErrorException('Failed to create user');
+
+      // Important
+      if (error instanceof RpcException) {
+        throw error;
+      }
+
+      throw new RpcException({
+        statusCode: 500,
+        message: 'Failed to create user',
+      });
     }
   }
 

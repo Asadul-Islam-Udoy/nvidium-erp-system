@@ -1,9 +1,11 @@
 import {
   Body,
+  ConflictException,
   Controller,
   Delete,
   Get,
   Inject,
+  InternalServerErrorException,
   Param,
   ParseIntPipe,
   Post,
@@ -20,8 +22,23 @@ export class UserController {
 
   @Post('/register')
   async create(@Body() dto: CreateUserDto) {
-    const user = await lastValueFrom(this.userClient.send('create_user', dto));
-    return user;
+    try {
+      const user = await lastValueFrom(
+        this.userClient.send('create_user', dto),
+      );
+
+      return user;
+    } catch (error: any) {
+      console.log('MICROSERVICE ERROR:', error);
+
+      if (error?.statusCode === 409) {
+        throw new ConflictException(error.message);
+      }
+
+      throw new InternalServerErrorException(
+        error?.message || 'Something went wrong',
+      );
+    }
   }
 
   @Get()
