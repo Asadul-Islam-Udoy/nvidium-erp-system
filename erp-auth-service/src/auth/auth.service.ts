@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RefreshToken } from '../token/refresh-token.entity';
@@ -14,6 +10,7 @@ import { env } from '../config/env';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { User } from '../user/user.entity';
+import { RpcException } from '@nestjs/microservices';
 
 export interface JwtUser {
   id: number;
@@ -62,24 +59,50 @@ export class AuthService {
   async validateUser(email: string, password: string): Promise<User> {
     try {
       const user = await this.userService.findByEmail(email);
-      if (!user) throw new UnauthorizedException('User not found');
-
-      if (!user.password) throw new UnauthorizedException('Password not set');
+      if (!user) {
+        throw new RpcException({
+          statusCode: 404,
+          message: 'User not found',
+        });
+      }
+      if (!user.password) {
+        throw new RpcException({
+          statusCode: 400,
+          message: 'Password not set',
+        });
+      }
 
       const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) throw new UnauthorizedException('Invalid credentials');
+      if (!isMatch) {
+        throw new RpcException({
+          statusCode: 401,
+          message: 'Invalid credentials',
+        });
+      }
 
       // fetch full user with roles & permissions
       const fullUser = await this.userService.findOneWithRolesAndPermissions(
         user.id,
       );
-      if (!fullUser) throw new UnauthorizedException('User not found');
-      if (!fullUser.roles?.length)
-        throw new UnauthorizedException('User has no roles');
+      if (!fullUser) {
+        throw new RpcException({
+          statusCode: 404,
+          message: 'User not found',
+        });
+      }
+      if (!fullUser.roles?.length) {
+        throw new RpcException({
+          statusCode: 400,
+          message: 'User has no roles',
+        });
+      }
       return fullUser;
     } catch (error) {
-      if (error instanceof UnauthorizedException) throw error;
-      throw new InternalServerErrorException('Failed to validate user');
+      if (error instanceof RpcException) throw error;
+      throw new RpcException({
+        statusCode: 500,
+        message: 'Failed to validate user',
+      });
     }
   }
 
@@ -93,7 +116,10 @@ export class AuthService {
     );
 
     if (!roles.length) {
-      throw new UnauthorizedException('User role or permissions not loaded');
+      throw new RpcException({
+        statusCode: 400,
+        message: 'User role or permissions not loaded',
+      });
     }
     // if (!permissions.length) {
     //   throw new UnauthorizedException('User has no permissions');
@@ -154,12 +180,18 @@ export class AuthService {
     });
 
     if (!rt || rt.revoked)
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new RpcException({
+        statusCode: 401,
+        message: 'Invalid refresh token',
+      });
     const isMatch = await bcrypt.compare(tokenRaw, rt.tokenHash);
     if (!isMatch) {
       rt.revoked = true;
       await this.tokenRepo.save(rt);
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new RpcException({
+        statusCode: 401,
+        message: 'Invalid refresh token',
+      });
     }
     rt.revoked = true;
     await this.tokenRepo.save(rt);
@@ -195,9 +227,12 @@ export class AuthService {
 
       return { accessToken, refreshToken };
     } catch (error) {
-      throw error instanceof UnauthorizedException
+      throw error instanceof RpcException
         ? error
-        : new InternalServerErrorException('Failed to login');
+        : new RpcException({
+            statusCode: 500,
+            message: 'Failed to login',
+          });
     }
   }
 
@@ -209,7 +244,10 @@ export class AuthService {
     const user = await this.userService.findOneWithRolesAndPermissions(userId);
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new RpcException({
+        statusCode: 404,
+        message: 'User not found',
+      });
     }
 
     return user;

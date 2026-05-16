@@ -7,7 +7,7 @@ import '@fastify/cookie';
 import { AuthService } from './auth.service';
 import { loginUserDto } from '../user/dto/loginUserDto';
 import { User } from '../user/user.entity';
-import { MessagePattern, Payload } from '@nestjs/microservices';
+import { MessagePattern, Payload, RpcException } from '@nestjs/microservices';
 
 @Controller()
 export class AuthController {
@@ -18,24 +18,32 @@ export class AuthController {
     try {
       const user = await this.authService.validateUser(dto.email, dto.password);
       if (!user) {
-        throw new UnauthorizedException('Invalid email or password');
+        throw new RpcException({
+          statusCode: 401,
+          message: 'Invalid email or password',
+        });
       }
 
       const token = await this.authService.login(user as unknown as User);
-
       return {
         accessToken: token.accessToken,
         refreshToken: token.refreshToken.token,
         refreshTokenId: token.refreshToken.id,
+        user,
       };
     } catch (error: any) {
       // Log error for debugging
       console.error('Microservice login error:', error);
 
       // Return a proper error
-      throw new InternalServerErrorException(
-        error?.message || 'Authentication service failed',
-      );
+      if (error instanceof RpcException) {
+        throw error;
+      }
+
+      throw new RpcException({
+        statusCode: 500,
+        message: 'Failed to create user',
+      });
     }
   }
   @MessagePattern('auth.refresh')
@@ -47,12 +55,18 @@ export class AuthController {
     },
   ) {
     if (!data.refreshToken) {
-      throw new UnauthorizedException('No refresh token');
+      throw new RpcException({
+        statusCode: 400,
+        message: 'No refresh token',
+      });
     }
     // store id too
 
     if (!data.refreshTokenId || isNaN(data.refreshTokenId)) {
-      throw new UnauthorizedException('Invalid refresh token id');
+      throw new RpcException({
+        statusCode: 400,
+        message: 'Invalid refresh token id',
+      });
     }
     const token = await this.authService.rotateRefreshToken(
       data.refreshTokenId,

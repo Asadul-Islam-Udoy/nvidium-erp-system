@@ -1,40 +1,81 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 
 import { useLoginMutation } from "../../features/auth/authApi";
-import { useAppDispatch } from "../../app/hooks";
+import { Link, useNavigate } from "react-router-dom";
 import { setCredentials } from "../../features/auth/authSlice";
-import { Link } from "react-router-dom";
+import { useDispatch } from "react-redux";
+
+type LoginFormState = {
+  email: string;
+  password: string;
+};
+type UIMessage = string | null;
 
 const LoginPage = () => {
-  const dispatch = useAppDispatch();
-  const [login, { isLoading }] = useLoginMutation();
-
+  const navigate = useNavigate();
+  const [login, { isLoading, isSuccess, error: apiError }] = useLoginMutation();
+  const dispatch = useDispatch();
   const [showPassword, setShowPassword] = useState(false);
+  const [message, setMessage] = useState<UIMessage>(null);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<LoginFormState>({
     email: "",
     password: "",
   });
+  console.log(message);
+  // Handle Success Redirect
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+
+    if (isSuccess) {
+      setMessage("Account Login successfully. Redirecting to home page...");
+
+      timer = setTimeout(() => {
+        // navigate("/home", {
+        //   replace: true,
+        // });
+      }, 1500);
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [isSuccess, navigate]);
+
+  // Handle API Error
+  useEffect(() => {
+    if (!apiError) return;
+    console.error("Login API error:", apiError);
+    const err = apiError as {
+      data?: {
+        message?: string;
+      };
+    };
+
+    setMessage(err?.data?.message || "Login failed");
+  }, [apiError]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
     }));
+
+    setMessage("");
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     try {
-      const res = await login(formData).unwrap();
-
+      const res = await login({
+        email: formData.email.trim(),
+        password: formData.password,
+      }).unwrap();
+      console.log("Login response:", res);
       dispatch(setCredentials(res));
-
-      console.log("Login Success");
-    } catch (error) {
-      console.error("Login Failed", error);
+    } catch {
+      // handled by useEffect(apiError)
     }
   };
 
@@ -216,9 +257,7 @@ const LoginPage = () => {
 
               <button
                 type="button"
-                onClick={() =>
-                  setShowPassword(!showPassword)
-                }
+                onClick={() => setShowPassword(!showPassword)}
                 className="
                   absolute
                   right-4
@@ -229,14 +268,32 @@ const LoginPage = () => {
                   transition
                 "
               >
-                {showPassword ? (
-                  <EyeOff size={18} />
-                ) : (
-                  <Eye size={18} />
-                )}
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
           </div>
+          {message && (
+            <div
+              className={`
+                px-4 py-3 rounded-xl text-sm border
+                ${
+                  isSuccess
+                    ? `
+                      text-green-400
+                      bg-green-500/10
+                      border-green-500/20
+                    `
+                    : `
+                      text-red-400
+                      bg-red-500/10
+                      border-red-500/20
+                    `
+                }
+              `}
+            >
+              {message}
+            </div>
+          )}
 
           {/* Options */}
           <div
@@ -307,7 +364,7 @@ const LoginPage = () => {
               transition
             "
           >
-           <Link to="/sign-up">Create Account</Link>
+            <Link to="/sign-up">Create Account</Link>
           </button>
         </div>
       </div>

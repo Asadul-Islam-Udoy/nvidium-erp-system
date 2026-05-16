@@ -26,22 +26,23 @@ export class AuthController {
       const result = await lastValueFrom(
         this.authClient.send('auth.login', dto),
       );
+      console.log('Login result from microservice:', result);
       // ✅ Set cookies
       res.setCookie('refreshToken', result.refreshToken, {
         httpOnly: true,
-        path: '/auth/refresh',
+        path: '/',
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
       });
 
       res.setCookie('refreshTokenId', String(result.refreshTokenId), {
         httpOnly: true,
-        path: '/auth/refresh',
+        path: '/',
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
       });
 
-      return { accessToken: result.accessToken };
+      return { accessToken: result.accessToken, user: result.user };
     } catch (error: any) {
       console.error('Microservice login error:', error);
 
@@ -52,7 +53,7 @@ export class AuthController {
 
       // Fallback for unexpected errors
       throw new HttpException(
-        { message: 'Authentication failed', error: 'Internal Error' },
+        { message: error.message || 'Internal Error' },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -76,12 +77,16 @@ export class AuthController {
     // rotate cookies
     res.setCookie('refreshToken', result.refreshToken, {
       httpOnly: true,
-      path: '/auth/refresh',
+      path: '/',
+      secure: false, // true only in HTTPS production
+      sameSite: 'lax', // IMPORTANT
     });
 
     res.setCookie('refreshTokenId', String(result.refreshTokenId), {
       httpOnly: true,
-      path: '/auth/refresh',
+      path: '/',
+      secure: false, // true only in HTTPS production
+      sameSite: 'lax', // IMPORTANT
     });
 
     return { accessToken: result.accessToken };
